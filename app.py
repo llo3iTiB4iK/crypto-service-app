@@ -12,19 +12,16 @@ class MyApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.service = CryptoService()
-
         # Window config
         self.title("CryptoService")
         self.config(padx=50, pady=100)
         self.resizable(False, False)
-
         # Page container
         self.container = tk.Frame(self)
         self.container.pack(side="top", fill="both", expand=True)
-
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)
-
+        # Frames dict
         self.frames = {}
         self.show_frame("MainPage")
 
