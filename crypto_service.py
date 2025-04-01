@@ -1,56 +1,56 @@
 import requests
 import pandas as pd
+import os
 
 
 class CryptoService:
-    BASE_URL = "https://api.coincap.io/v2"
+    BASE_URL = "https://rest.coincap.io/v3"
+    API_KEY = os.environ.get("COINCAP_API_KEY")
 
-    @staticmethod
-    def _get_data(url: str, params: dict = None) -> pd.DataFrame:
+    def __init__(self) -> None:
+        self.session = requests.Session()
+
+    def _request_data(self, endpoint: str, params: dict = None) -> pd.DataFrame:
+        if params is None:
+            params = {}
+
+        params["apiKey"] = self.API_KEY
+        url = f"{self.BASE_URL}/{endpoint}"
+
         try:
-            response = requests.get(url, params, timeout=10)
+            response = self.session.get(url, params=params, timeout=10)
             response.raise_for_status()
-            json_data = response.json()
-            if "data" not in json_data:
-                print(f"Unexpected response format: {json_data}")
-                return pd.DataFrame()
-            return pd.DataFrame(json_data["data"])
+            data = response.json()
+            return pd.DataFrame(data.get("data"))
         except requests.RequestException as e:
             print(f"Request Exception: {e}")
             return pd.DataFrame()
 
     def get_asset_price(self, n_rows: int = None) -> pd.DataFrame:
-        url = f"{self.BASE_URL}/assets"
-        data = self._get_data(url, {"limit": n_rows})
-        if data.empty:
-            return data
+        df = self._request_data("assets", {"limit": n_rows})
+        if df.empty:
+            return df
 
-        data.set_index("id", inplace=True)
-        data = data[["symbol", "name", "priceUsd", "changePercent24Hr"]]
-        return data
+        return df.set_index("id")[["symbol", "name", "priceUsd", "changePercent24Hr"]]
 
     def get_crypto_markets(self, asset_id: str) -> pd.DataFrame:
-        url = f"{self.BASE_URL}/assets/{asset_id}/markets"
-        data = self._get_data(url)
-        if data.empty:
-            return data
+        df = self._request_data(f"assets/{asset_id}/markets")
+        if df.empty:
+            return df
 
-        data.set_index(["baseId", "quoteId"], append=True, inplace=True)
-        data = data[["exchangeId", "baseSymbol", "quoteSymbol", "priceUsd", "volumeUsd24Hr", "volumePercent"]]
-        data.rename({
-            "exchangeId": "Exchange (ID)",
-            "baseSymbol": "Base (Symbol)",
-            "quoteSymbol": "Quote (Symbol)",
-            "priceUsd": "Price (USD)",
-            "volumeUsd24Hr": "Volume (24H)",
-            "volumePercent": "Volume (%)"
-        }, axis=1, inplace=True)
-        return data
+        return df[["exchangeId", "baseSymbol", "quoteSymbol", "priceUsd", "volumeUsd24Hr", "volumePercent"]].rename(
+            columns={
+                "exchangeId": "Exchange (ID)",
+                "baseSymbol": "Base (Symbol)",
+                "quoteSymbol": "Quote (Symbol)",
+                "priceUsd": "Price (USD)",
+                "volumeUsd24Hr": "Volume (24H)",
+                "volumePercent": "Volume (%)"
+            })
 
     def get_crypto_history(self, asset_id: str) -> pd.Series:
-        url = f"{self.BASE_URL}/assets/{asset_id}/history"
-        data = self._get_data(url, {'interval': 'd1'})
-        if data.empty:
+        df = self._request_data(f"assets/{asset_id}/history", {"interval": "d1"})
+        if df.empty:
             return pd.Series(dtype=float)
 
-        return pd.Series(data["priceUsd"].astype(float).values, index=pd.to_datetime(data["time"], unit="ms"))
+        return pd.Series(df["priceUsd"].astype(float).values, index=pd.to_datetime(df["time"], unit="ms"))

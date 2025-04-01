@@ -13,38 +13,45 @@ if TYPE_CHECKING:
 class CryptoMarkets(BasePage):
     def __init__(self, parent: tk.Frame, controller: "MyApp") -> None:
         super().__init__(parent, controller, {"columns": [], "show": "headings"})
-        self.asset_id = None
+        self._tree.bind("<<TreeviewSelect>>", self._on_tree_selection_change)
+        self._asset_id = None
         # Back button
-        self.back_button = tk.Button(self, text="< Back", command=lambda: self.controller.show_frame("MainPage"))
+        self._back_button = tk.Button(self, text="< Back", command=lambda: self._controller.show_frame("MainPage"))
         # Matplotlib Figure for price history
-        self.figure = Figure(figsize=(12, 5), dpi=50)  # todo: adjust size
-        self.canvas = FigureCanvasTkAgg(self.figure, master=self)
+        self._figure = Figure(figsize=(12, 5), dpi=50)  # todo: adjust size
+        self._canvas = FigureCanvasTkAgg(self._figure, master=self)
         # Toolbar для масштабування/переміщення графіка
-        self.toolbar = NavigationToolbar2Tk(self.canvas, window=self, pack_toolbar=False)
+        self._toolbar = NavigationToolbar2Tk(self._canvas, window=self, pack_toolbar=False)
         # Setup frame
-        self.place_widgets()
+        self._place_widgets()
 
-    def place_widgets(self) -> None:
-        self.back_button.grid(row=0, column=0)
-        self.tree.grid(row=1, column=0)
-        self.scrollbar.grid(row=1, column=1, sticky="ns")
-        self.toolbar.grid(row=2, column=0, columnspan=2, sticky="ew")
-        self.canvas.get_tk_widget().grid(row=3, column=0, columnspan=2, sticky="nsew")
+    def _place_widgets(self) -> None:
+        self._back_button.grid(row=0, column=0)
+        self._tree.grid(row=1, column=0)
+        self._scrollbar.grid(row=1, column=1, sticky="ns")
+        self._toolbar.grid(row=2, column=0, columnspan=2, sticky="ew")
+        self._canvas.get_tk_widget().grid(row=3, column=0, columnspan=2, sticky="nsew")
 
-    def update_page(self) -> None:
-        asset_markets = self.controller.service.get_crypto_markets(asset_id=self.asset_id)
-        self.fill_treeview(asset_markets)
-        asset_history = self.controller.service.get_crypto_history(asset_id=self.asset_id)
+    def _update_page(self) -> None:
+        asset_markets = self._controller.service.get_crypto_markets(asset_id=self._asset_id)
+        self._fill_treeview(asset_markets)
+        asset_history = self._controller.service.get_crypto_history(asset_id=self._asset_id)
         self._plot_price_chart(asset_history)
 
-    def set_asset(self, asset_id: str):
-        self.stop_refreshing()
-        self.asset_id = asset_id
-        self.refresh()
+    def _on_tree_selection_change(self, event: tk.Event) -> None:
+        print(event)
+        selected_items = self._tree.selection()
+        if selected_items:
+            print(f"Вибрано: {selected_items}")
+
+    def set_asset(self, asset_id: str) -> None:
+        self._stop_refreshing()
+        self._asset_id = asset_id
+        self._refresh()
 
     def _plot_price_chart(self, *plot_args: Any) -> None:
-        ax = self.plot_data(*plot_args, self.figure,
-                            xlabel="Date", ylabel="Price (USD)", title=f"Price History for {self.asset_id}", grid=True)
+        ax = self._plot_data(*plot_args, self._figure,
+                             xlabel="Date", ylabel="Price (USD)", title=f"Price History for {self._asset_id}", grid=True)
 
         def format_price(price: float) -> str:
             return f"{price:.2e}" if price < 0.01 else f"{price:.2f}"
@@ -54,6 +61,6 @@ class CryptoMarkets(BasePage):
             f"${format_price(sel.target[1])} on {mdates.num2date(sel.target[0]).strftime('%Y-%m-%d')}"
         ))
 
-        self.canvas.draw()
-        self.figure.tight_layout()
-        self.toolbar.update()
+        self._canvas.draw()
+        self._figure.tight_layout()
+        self._toolbar.update()

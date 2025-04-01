@@ -15,42 +15,44 @@ class BasePage(tk.Frame, ABC):
 
     def __init__(self, parent: tk.Frame, controller: "MyApp", treeview_params: dict) -> None:
         super().__init__(parent)
-        self.controller = controller
+        self._controller = controller
         self._page_refresh_timer = None
         # Treeview for data table
-        self.tree = ttk.Treeview(self, **treeview_params)
+        self._tree = ttk.Treeview(self, **treeview_params)
         # Scrollbar for treeview table
-        self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=self.scrollbar.set)
+        self._scrollbar = ttk.Scrollbar(self, orient="vertical", command=self._tree.yview)
+        self._tree.configure(yscrollcommand=self._scrollbar.set)
 
     @abstractmethod
-    def place_widgets(self) -> None:
+    def _place_widgets(self) -> None:
         pass
 
     @abstractmethod
-    def update_page(self) -> None:
+    def _update_page(self) -> None:
         pass
 
-    def refresh(self) -> None:
-        self.update_page()
-        self._page_refresh_timer = self.after(PAGE_REFRESH_TIME_SEC * 1000, self.refresh)
+    def _refresh(self) -> None:
+        self._update_page()
+        self._page_refresh_timer = self.after(PAGE_REFRESH_TIME_SEC * 1000, self._refresh)
 
-    def stop_refreshing(self):
+    def _stop_refreshing(self) -> None:
         if self._page_refresh_timer:
             self.after_cancel(self._page_refresh_timer)
             self._page_refresh_timer = None
 
-    def fill_treeview(self, data: pd.DataFrame) -> None:
-        self.tree.delete(*self.tree.get_children())
-        self.tree["columns"] = list(data.columns)
+    def _fill_treeview(self, data: pd.DataFrame) -> None:
+        selection_buffer = self._tree.selection()
+        self._tree.delete(*self._tree.get_children())
+        self._tree["columns"] = list(data.columns)
         for col in data.columns:
-            self.tree.heading(col, text=col)
+            self._tree.heading(col, text=col)
         for index, row in data.iterrows():
             if index:
-                self.tree.insert("", "end", iid=index, values=row.tolist())
+                self._tree.insert("", "end", iid=index, values=row.tolist())
+        self._tree.selection_set(selection_buffer)
 
     @staticmethod
-    def plot_data(data: pd.DataFrame | pd.Series, figure: Figure, **plot_kwargs: Any) -> plt.Axes:
+    def _plot_data(data: pd.DataFrame | pd.Series, figure: Figure, **plot_kwargs: Any) -> plt.Axes:
         figure.clear()
         ax = figure.add_subplot()
         data.plot(ax=ax, **plot_kwargs)
