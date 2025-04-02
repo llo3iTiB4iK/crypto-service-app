@@ -37,7 +37,7 @@ class MainPage(BasePage):
         self._tree.grid(row=1, column=0, columnspan=2)
         self._scrollbar.grid(row=1, column=2, sticky="ns")
 
-    def _update_page(self) -> None:
+    def update_page(self) -> None:
         self._df = self._controller.service.get_asset_price()# n_rows=2000)
         self._filter_treeview()
 

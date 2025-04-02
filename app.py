@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox as msg
+from tkinter import ttk, messagebox as msg
 from pages import MainPage, CryptoMarkets
 from crypto_service import CryptoService
 
@@ -13,6 +13,13 @@ class MyApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.service = CryptoService()
+        self._conversion_rates = self.service.get_conversion_rates()
+        self.selected_currency = tk.StringVar(value=self._conversion_rates.index[0])
+        # Combobox for currency choice
+        self._currency_selector = ttk.Combobox(self, state="readonly", textvariable=self.selected_currency,
+                                               values=self._conversion_rates.index.sort_values().tolist())
+        self._currency_selector.pack()
+        self._currency_selector.bind("<<ComboboxSelected>>", lambda _: self._on_currency_change())
         # Window config
         self.iconbitmap(default='icon.ico')
         self.title("CryptoService")
@@ -40,6 +47,11 @@ class MyApp(tk.Tk):
         frame = self._frames[page_name]
         frame.tkraise()
         return frame
+
+    def _on_currency_change(self):
+        self.service.conversion_rate = self._conversion_rates[self.selected_currency.get()]
+        for frame in self._frames.values():
+            frame.update_page()
 
     def _program_exit(self) -> None:
         if msg.askyesno("Exit?", "Are you sure you want to exit?"):

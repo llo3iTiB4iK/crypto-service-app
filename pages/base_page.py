@@ -27,12 +27,12 @@ class BasePage(tk.Frame, ABC):
         pass
 
     @abstractmethod
-    def _update_page(self) -> None:
+    def update_page(self) -> None:
         pass
 
     def _start_refreshing(self, save_selection: bool = True) -> None:
         selection_buffer = self._tree.selection()
-        self._update_page()
+        self.update_page()
         if save_selection:
             self._tree.selection_set(selection_buffer)
         self._page_refresh_timer = self.after(PAGE_REFRESH_TIME_SEC * 1000, self._start_refreshing)

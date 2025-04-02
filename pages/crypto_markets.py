@@ -37,9 +37,10 @@ class CryptoMarkets(BasePage):
         self._toolbar.grid(row=2, column=0, columnspan=2, sticky="ew")
         self._canvas.get_tk_widget().grid(row=3, column=0, columnspan=2, sticky="nsew")
 
-    def _update_page(self) -> None:
+    def update_page(self) -> None:
         asset_markets = self._controller.service.get_crypto_markets(asset_id=self._asset_id)
         self._fill_treeview(asset_markets)
+        self._plot_asset_history()
 
     def _on_tree_selection_change(self):
         self._schedule_delayed_task("plot_tree_selection", MARKETS_PAGE_PLOT_DELAY_MS, self._plot_trade_volume_chart)
@@ -48,7 +49,6 @@ class CryptoMarkets(BasePage):
         self._stop_refreshing()
         self._asset_id = asset_id
         self._start_refreshing(save_selection=False)
-        self._plot_asset_history()
         self._plot_trade_volume_chart()
 
     def _plot_chart(self, ax: Axes, data: pd.Series, **plot_kwargs: Any) -> None:
@@ -59,16 +59,17 @@ class CryptoMarkets(BasePage):
         self._toolbar.update()
 
     def _plot_asset_history(self) -> None:
+        currency = self._controller.selected_currency.get()
         asset_history = self._controller.service.get_crypto_history(asset_id=self._asset_id)
-        self._plot_chart(self._ax1, asset_history, xlabel="Date", ylabel="Price (USD)",
+        self._plot_chart(self._ax1, asset_history, xlabel="Date", ylabel=currency,
                          title=f"Price History for \"{self._asset_id}\"", grid=True)
 
         def format_price(price: float) -> str:
             return f"{price:.2e}" if price < 0.01 else f"{price:.2f}"
 
-        cursor = mplcursors.cursor(self._ax1, hover=True)
+        cursor = mplcursors.cursor(self._ax1, hover=mplcursors.HoverMode.Transient)
         cursor.connect("add", lambda sel: sel.annotation.set_text(
-            f"${format_price(sel.target[1])} on {mdates.num2date(sel.target[0]).strftime('%Y-%m-%d')}"
+            f"{format_price(sel.target[1])} {currency}  on {mdates.num2date(sel.target[0]).strftime('%Y-%m-%d')}"
         ))
 
     def _plot_trade_volume_chart(self) -> None:
