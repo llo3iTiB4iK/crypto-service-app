@@ -16,7 +16,7 @@ class MyApp(tk.Tk):
         # Window config
         self.iconbitmap(default='icon.ico')
         self.title("CryptoService")
-        self.config(padx=50, pady=100)
+        self.config(padx=50, pady=50)
         self.resizable(False, False)
         # Page container
         self._container = tk.Frame(self)

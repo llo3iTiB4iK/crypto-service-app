@@ -1,11 +1,9 @@
-import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import ttk
 import pandas as pd
-from matplotlib.figure import Figure
 from abc import ABC, abstractmethod
 from .config_vars import PAGE_REFRESH_TIME_SEC
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from app import MyApp
@@ -17,6 +15,7 @@ class BasePage(tk.Frame, ABC):
         super().__init__(parent)
         self._controller = controller
         self._page_refresh_timer = None
+        self._delayed_tasks = {}
         # Treeview for data table
         self._tree = ttk.Treeview(self, **treeview_params)
         # Scrollbar for treeview table
@@ -31,17 +30,24 @@ class BasePage(tk.Frame, ABC):
     def _update_page(self) -> None:
         pass
 
-    def _refresh(self) -> None:
+    def _start_refreshing(self, save_selection: bool = True) -> None:
+        selection_buffer = self._tree.selection()
         self._update_page()
-        self._page_refresh_timer = self.after(PAGE_REFRESH_TIME_SEC * 1000, self._refresh)
+        if save_selection:
+            self._tree.selection_set(selection_buffer)
+        self._page_refresh_timer = self.after(PAGE_REFRESH_TIME_SEC * 1000, self._start_refreshing)
 
     def _stop_refreshing(self) -> None:
         if self._page_refresh_timer:
             self.after_cancel(self._page_refresh_timer)
             self._page_refresh_timer = None
 
+    def _schedule_delayed_task(self, task_name: str, delay: int, callback: Callable, *args: Any) -> None:
+        if task_name in self._delayed_tasks:
+            self.after_cancel(self._delayed_tasks[task_name])
+        self._delayed_tasks[task_name] = self.after(delay, callback, *args)
+
     def _fill_treeview(self, data: pd.DataFrame) -> None:
-        selection_buffer = self._tree.selection()
         self._tree.delete(*self._tree.get_children())
         self._tree["columns"] = list(data.columns)
         for col in data.columns:
@@ -49,11 +55,3 @@ class BasePage(tk.Frame, ABC):
         for index, row in data.iterrows():
             if index:
                 self._tree.insert("", "end", iid=index, values=row.tolist())
-        self._tree.selection_set(selection_buffer)
-
-    @staticmethod
-    def _plot_data(data: pd.DataFrame | pd.Series, figure: Figure, **plot_kwargs: Any) -> plt.Axes:
-        figure.clear()
-        ax = figure.add_subplot()
-        data.plot(ax=ax, **plot_kwargs)
-        return ax

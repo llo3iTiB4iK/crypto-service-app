@@ -9,3 +9,5 @@ if __name__ == "__main__":
     # todo: add toast notifications
     # todo: add error handling
     # todo: add requirements.txt
+    # todo: add asynchrony and loading animations
+    # todo: make layout and value formatting

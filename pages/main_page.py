@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class MainPage(BasePage):
 
     def __init__(self, parent: tk.Frame, controller: "MyApp") -> None:
-        super().__init__(parent, controller, {"columns": [], "show": ""})
+        super().__init__(parent, controller, {"columns": [], "show": "", "selectmode": "browse"})
         # Bind double click event for tree
         self._tree.bind("<Double-1>", self._on_tree_row_dbl_click)
         # Data field
@@ -21,14 +21,15 @@ class MainPage(BasePage):
         self._search_entry = ttk.Entry(self)
         self._search_entry.bind("<FocusIn>", lambda _: self._search_entry_focus_in())
         self._search_entry.bind("<FocusOut>", lambda _: self._search_entry_focus_out())
-        self._search_entry.bind("<KeyRelease>", self._plan_treeview_filtering)
+        self._search_entry.bind("<KeyRelease>", self._search_entry_change)
+        self._search_entry_focus_out()
         self._search_timer = None
         # Forward button
         self._forward_button = tk.Button(self, text="Forward >",
                                          command=lambda: self._controller.show_frame("CryptoMarkets"), state="disabled")
         # Frame setup
         self._place_widgets()
-        self._refresh()
+        self._start_refreshing()
 
     def _place_widgets(self) -> None:
         self._search_entry.grid(row=0, column=0)
@@ -39,7 +40,6 @@ class MainPage(BasePage):
     def _update_page(self) -> None:
         self._df = self._controller.service.get_asset_price()# n_rows=2000)
         self._filter_treeview()
-        self._search_entry_focus_out()
 
     def _on_tree_row_dbl_click(self, event: tk.Event) -> None:
         row_id = self._tree.identify_row(event.y)
@@ -59,10 +59,8 @@ class MainPage(BasePage):
             self._search_entry.insert(0, MAIN_PAGE_SEARCH_FIELD_PH)
             self._search_entry.configure(foreground="gray")
 
-    def _plan_treeview_filtering(self, event: tk.Event = None) -> None:
-        if self._search_timer:
-            self.after_cancel(self._search_timer)
-        self._search_timer = self.after(MAIN_PAGE_SEARCH_DELAY_MS, self._filter_treeview, event)
+    def _search_entry_change(self, event: tk.Event) -> None:
+        self._schedule_delayed_task("filter_treeview", MAIN_PAGE_SEARCH_DELAY_MS, self._filter_treeview, event)
 
     def _filter_treeview(self, event: tk.Event = None) -> None:
         search_text = "" if self._search_entry.get() == MAIN_PAGE_SEARCH_FIELD_PH else self._search_entry.get().strip()
