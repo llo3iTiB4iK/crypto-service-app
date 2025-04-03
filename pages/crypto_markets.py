@@ -3,11 +3,11 @@ import pandas as pd
 from matplotlib.figure import Figure
 from matplotlib.pyplot import Axes
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-import matplotlib.dates as mdates
 import mplcursors
 from typing import TYPE_CHECKING, Any
 from .base_page import BasePage
-from .config_vars import MARKETS_PAGE_PLOT_DELAY_MS
+from config import MARKETS_PAGE_PLOT_DELAY_MS
+from utils import Formatter
 
 if TYPE_CHECKING:
     from app import MyApp
@@ -46,9 +46,9 @@ class CryptoMarkets(BasePage):
         self._schedule_delayed_task("plot_tree_selection", MARKETS_PAGE_PLOT_DELAY_MS, self._plot_trade_volume_chart)
 
     def set_asset(self, asset_id: str) -> None:
-        self._stop_refreshing()
+        self.stop_refreshing()
         self._asset_id = asset_id
-        self._start_refreshing(save_selection=False)
+        self.start_refreshing(save_selection=False)
         self._plot_trade_volume_chart()
 
     def _plot_chart(self, ax: Axes, data: pd.Series, **plot_kwargs: Any) -> None:
@@ -64,12 +64,9 @@ class CryptoMarkets(BasePage):
         self._plot_chart(self._ax1, asset_history, xlabel="Date", ylabel=currency,
                          title=f"Price History for \"{self._asset_id}\"", grid=True)
 
-        def format_price(price: float) -> str:
-            return f"{price:.2e}" if price < 0.01 else f"{price:.2f}"
-
         cursor = mplcursors.cursor(self._ax1, hover=mplcursors.HoverMode.Transient)
         cursor.connect("add", lambda sel: sel.annotation.set_text(
-            f"{format_price(sel.target[1])} {currency}  on {mdates.num2date(sel.target[0]).strftime('%Y-%m-%d')}"
+            f"{Formatter.format_price(sel.target[1])} {currency}  on {Formatter.format_date(sel.target[0])}"
         ))
 
     def _plot_trade_volume_chart(self) -> None:
@@ -81,12 +78,17 @@ class CryptoMarkets(BasePage):
         data = [self._tree.item(item, "values") for item in selected_items]
         df = pd.DataFrame(data, columns=columns)
 
-        target_values = df["Volume (%)"].astype(float).values
+        target_values = df["Volume (24H)"].astype(float).values
         target_index = (df["Exchange (ID)"] + " | " + df["Base (Symbol)"] + "/" + df["Quote (Symbol)"]).values
         if len(selected_items) == len(df):
             threshold = 0.03 * target_values.sum()
             target_index = [name if value >= threshold else "Others" for name, value in zip(target_index, target_values)]
 
         market_shares = pd.Series(target_values, index=target_index).groupby(level=0).sum()
-        self._plot_chart(self._ax2, market_shares, kind="pie", autopct="%.1f%%",
+
+        def format_pct(pct: float) -> str:
+            absolute = int(pct / 100. * market_shares.sum())
+            return f"{pct:.1f}%\n{Formatter.human_format(absolute)} {self._controller.selected_currency.get()}"
+
+        self._plot_chart(self._ax2, market_shares, kind="pie", autopct=format_pct,
                          title=f"\"{self._asset_id}\" Trading Volume Share by Exchange and Pair")

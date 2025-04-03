@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 import pandas as pd
 from abc import ABC, abstractmethod
-from .config_vars import PAGE_REFRESH_TIME_SEC
 from typing import TYPE_CHECKING, Any, Callable
+from config import PAGE_REFRESH_TIME_SEC
 
 if TYPE_CHECKING:
     from app import MyApp
@@ -30,14 +30,14 @@ class BasePage(tk.Frame, ABC):
     def update_page(self) -> None:
         pass
 
-    def _start_refreshing(self, save_selection: bool = True) -> None:
+    def start_refreshing(self, save_selection: bool = True) -> None:
         selection_buffer = self._tree.selection()
         self.update_page()
         if save_selection:
             self._tree.selection_set(selection_buffer)
-        self._page_refresh_timer = self.after(PAGE_REFRESH_TIME_SEC * 1000, self._start_refreshing)
+        self._page_refresh_timer = self.after(PAGE_REFRESH_TIME_SEC * 1000, self.start_refreshing)
 
-    def _stop_refreshing(self) -> None:
+    def stop_refreshing(self) -> None:
         if self._page_refresh_timer:
             self.after_cancel(self._page_refresh_timer)
             self._page_refresh_timer = None

@@ -10,3 +10,5 @@ if __name__ == "__main__":
     # todo: add requirements.txt
     # todo: add asynchrony and loading animations
     # todo: make layout and value formatting
+    # todo: save user choices
+    # todo: add docstrings

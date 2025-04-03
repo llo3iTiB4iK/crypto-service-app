@@ -2,11 +2,13 @@ import tkinter as tk
 from tkinter import ttk, messagebox as msg
 from typing import TYPE_CHECKING
 from .base_page import BasePage
-from .config_vars import MAIN_PAGE_SEARCH_DELAY_MS, MAIN_PAGE_SEARCH_FIELD_PH
+from config import MAIN_PAGE_SEARCH_DELAY_MS
 
 if TYPE_CHECKING:
     from app import MyApp
     from .crypto_markets import CryptoMarkets
+
+SEARCH_FIELD_PLACEHOLDER = "Search by Name or Symbol..."
 
 
 class MainPage(BasePage):
@@ -29,7 +31,7 @@ class MainPage(BasePage):
                                          command=lambda: self._controller.show_frame("CryptoMarkets"), state="disabled")
         # Frame setup
         self._place_widgets()
-        self._start_refreshing()
+        self.start_refreshing()
 
     def _place_widgets(self) -> None:
         self._search_entry.grid(row=0, column=0)
@@ -50,20 +52,20 @@ class MainPage(BasePage):
             self._forward_button.configure(state="normal")
 
     def _search_entry_focus_in(self) -> None:
-        if self._search_entry.get() == MAIN_PAGE_SEARCH_FIELD_PH:
+        if self._search_entry.get() == SEARCH_FIELD_PLACEHOLDER:
             self._search_entry.delete(0, tk.END)
             self._search_entry.configure(foreground="black")
 
     def _search_entry_focus_out(self) -> None:
         if self._search_entry.get() == "":
-            self._search_entry.insert(0, MAIN_PAGE_SEARCH_FIELD_PH)
+            self._search_entry.insert(0, SEARCH_FIELD_PLACEHOLDER)
             self._search_entry.configure(foreground="gray")
 
     def _search_entry_change(self, event: tk.Event) -> None:
         self._schedule_delayed_task("filter_treeview", MAIN_PAGE_SEARCH_DELAY_MS, self._filter_treeview, event)
 
     def _filter_treeview(self, event: tk.Event = None) -> None:
-        search_text = "" if self._search_entry.get() == MAIN_PAGE_SEARCH_FIELD_PH else self._search_entry.get().strip()
+        search_text = "" if self._search_entry.get() == SEARCH_FIELD_PLACEHOLDER else self._search_entry.get().strip()
         mask = self._df.astype(str).apply(lambda col: col.str.contains(search_text, case=False))
         filtered_df = self._df[mask.any(axis=1)]
         self._fill_treeview(filtered_df)

@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox as msg
 from pages import MainPage, CryptoMarkets
 from crypto_service import CryptoService
+from config import APP_TITLE, ICON_PATH
 
 
 class MyApp(tk.Tk):
@@ -21,8 +22,8 @@ class MyApp(tk.Tk):
         self._currency_selector.pack()
         self._currency_selector.bind("<<ComboboxSelected>>", lambda _: self._on_currency_change())
         # Window config
-        self.iconbitmap(default='icon.ico')
-        self.title("CryptoService")
+        self.iconbitmap(default=ICON_PATH)
+        self.title(APP_TITLE)
         self.config(padx=50, pady=50)
         self.resizable(False, False)
         # Page container
@@ -51,7 +52,9 @@ class MyApp(tk.Tk):
     def _on_currency_change(self):
         self.service.conversion_rate = self._conversion_rates[self.selected_currency.get()]
         for frame in self._frames.values():
+            frame.stop_refreshing()
             frame.update_page()
+            frame.start_refreshing()
 
     def _program_exit(self) -> None:
         if msg.askyesno("Exit?", "Are you sure you want to exit?"):
