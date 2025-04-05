@@ -3,6 +3,7 @@ import os
 # Application config
 APP_TITLE = ""
 ICON_PATH = "icon.ico"
+USER_CONFIG = "settings.json"
 
 # Data source config
 API_BASE_URL = "https://rest.coincap.io/v3"

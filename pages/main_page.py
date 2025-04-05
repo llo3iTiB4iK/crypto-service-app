@@ -13,7 +13,7 @@ SEARCH_FIELD_PLACEHOLDER = "Search by Name or Symbol..."
 
 class MainPage(BasePage):
 
-    def __init__(self, parent: tk.Frame, controller: "MyApp") -> None:
+    def __init__(self, parent: ttk.Frame, controller: "MyApp") -> None:
         super().__init__(parent, controller, {"columns": [], "show": "", "selectmode": "browse"})
         # Bind double click event for tree
         self._tree.bind("<Double-1>", self._on_tree_row_dbl_click)
@@ -27,19 +27,21 @@ class MainPage(BasePage):
         self._search_entry_focus_out()
         self._search_timer = None
         # Forward button
-        self._forward_button = tk.Button(self, text="Forward >",
-                                         command=lambda: self._controller.show_frame("CryptoMarkets"), state="disabled")
+        self._forward_button = ttk.Button(self, text="Forward >",
+                                          command=lambda: self._controller.show_frame("CryptoMarkets"), state="disabled")
         # Frame setup
         self._place_widgets()
-        self.start_refreshing()
+        self._start_refreshing()
 
     def _place_widgets(self) -> None:
-        self._search_entry.grid(row=0, column=0)
-        self._forward_button.grid(row=0, column=1)
-        self._tree.grid(row=1, column=0, columnspan=2)
-        self._scrollbar.grid(row=1, column=2, sticky="ns")
+        self._currency_selector.grid(row=0, column=0)
+        self._theme_selector.grid(row=0, column=1)
+        self._search_entry.grid(row=1, column=0)
+        self._forward_button.grid(row=1, column=1)
+        self._tree.grid(row=2, column=0, columnspan=2)
+        self._scrollbar.grid(row=2, column=2, sticky="ns")
 
-    def update_page(self) -> None:
+    def _update_page(self) -> None:
         self._df = self._controller.service.get_asset_price()# n_rows=2000)
         self._filter_treeview()
 

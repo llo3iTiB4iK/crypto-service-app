@@ -1,8 +1,8 @@
-import tkinter as tk
+from tkinter import ttk
 import pandas as pd
 from matplotlib.figure import Figure
 from matplotlib.pyplot import Axes
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import mplcursors
 from typing import TYPE_CHECKING, Any
 from .base_page import BasePage
@@ -14,49 +14,78 @@ if TYPE_CHECKING:
 
 
 class CryptoMarkets(BasePage):
-    def __init__(self, parent: tk.Frame, controller: "MyApp") -> None:
+    def __init__(self, parent: ttk.Frame, controller: "MyApp") -> None:
         super().__init__(parent, controller, {"columns": [], "show": "headings"})
         self._tree.bind("<<TreeviewSelect>>", lambda _: self._on_tree_selection_change())
         self._tree.bind("<Control-a>", lambda _: self._tree.selection_set(self._tree.get_children()))
         self._asset_id = None
         # Back button
-        self._back_button = tk.Button(self, text="< Back", command=lambda: self._controller.show_frame("MainPage"))
+        self._back_button = ttk.Button(self, text="< Back", command=lambda: self._controller.show_frame("MainPage"))
         # Matplotlib Figure for price history
-        self._figure = Figure(figsize=(12, 6), dpi=50)  # todo: adjust size
+        self._figure = Figure(figsize=(12, 6), dpi=50)
         (self._ax1, self._ax2) = self._figure.subplots(1, 2)
         self._canvas = FigureCanvasTkAgg(self._figure, master=self)
-        # Toolbar for scaling/moving chart
-        self._toolbar = NavigationToolbar2Tk(self._canvas, window=self, pack_toolbar=False)
+        # Handle theme choice for plots properly
+        self._theme_selector.bind("<<ComboboxSelected>>", lambda _: self._on_theme_change(), add="+")
+        self._fg_color = None
+        self._update_canvas_colors()
         # Setup frame
         self._place_widgets()
 
     def _place_widgets(self) -> None:
-        self._back_button.grid(row=0, column=0)
-        self._tree.grid(row=1, column=0)
-        self._scrollbar.grid(row=1, column=1, sticky="ns")
-        self._toolbar.grid(row=2, column=0, columnspan=2, sticky="ew")
+        self._currency_selector.grid(row=0, column=0)
+        self._theme_selector.grid(row=0, column=1)
+        self._back_button.grid(row=1, column=1)
+        self._tree.grid(row=2, column=0, columnspan=2)
+        self._scrollbar.grid(row=2, column=2, sticky="ns")
         self._canvas.get_tk_widget().grid(row=3, column=0, columnspan=2, sticky="nsew")
 
-    def update_page(self) -> None:
+    def _update_page(self) -> None:
         asset_markets = self._controller.service.get_crypto_markets(asset_id=self._asset_id)
         self._fill_treeview(asset_markets)
         self._plot_asset_history()
 
-    def _on_tree_selection_change(self):
+    def _on_tree_selection_change(self) -> None:
         self._schedule_delayed_task("plot_tree_selection", MARKETS_PAGE_PLOT_DELAY_MS, self._plot_trade_volume_chart)
 
     def set_asset(self, asset_id: str) -> None:
-        self.stop_refreshing()
+        self._stop_refreshing()
         self._asset_id = asset_id
-        self.start_refreshing(save_selection=False)
+        self._start_refreshing(save_selection=False)
         self._plot_trade_volume_chart()
+
+    def _on_theme_change(self) -> None:
+        self._update_canvas_colors()
+        self._plot_asset_history()
+        self._plot_trade_volume_chart()
+
+    def _update_canvas_colors(self) -> None:
+        style = ttk.Style()
+        bg_color = self.winfo_rgb(style.lookup("TFrame", "background") or "#FFFFFF")
+        bg_color = '#%02x%02x%02x' % tuple(c // 256 for c in bg_color)
+        self._figure.set_facecolor(bg_color)
+        self._ax1.set_facecolor(bg_color)
+        self._ax2.set_facecolor(bg_color)
+        fg_color = self.winfo_rgb(style.lookup("TFrame", "foreground") or "#000000")
+        self._fg_color = '#%02x%02x%02x' % tuple(c // 256 for c in fg_color)
 
     def _plot_chart(self, ax: Axes, data: pd.Series, **plot_kwargs: Any) -> None:
         ax.clear()
         data.plot(ax=ax, **plot_kwargs)
+        # Theme-based coloring
+        ax.tick_params(colors=self._fg_color)
+        ax.xaxis.label.set_color(self._fg_color)
+        ax.yaxis.label.set_color(self._fg_color)
+        ax.title.set_color(self._fg_color)
+        for spine in ax.spines.values():
+            spine.set_color(self._fg_color)
+        if plot_kwargs.get("kind") == "pie":
+            for text in ax.texts:
+                if '%' in text.get_text():
+                    text.set_color('black')
+        # Drawing plot changes
         self._canvas.draw()
         self._figure.tight_layout()
-        self._toolbar.update()
 
     def _plot_asset_history(self) -> None:
         currency = self._controller.selected_currency.get()
@@ -90,5 +119,5 @@ class CryptoMarkets(BasePage):
             absolute = int(pct / 100. * market_shares.sum())
             return f"{pct:.1f}%\n{Formatter.human_format(absolute)} {self._controller.selected_currency.get()}"
 
-        self._plot_chart(self._ax2, market_shares, kind="pie", autopct=format_pct,
+        self._plot_chart(self._ax2, market_shares, kind="pie", autopct=format_pct, textprops={'color': self._fg_color},
                          title=f"\"{self._asset_id}\" Trading Volume Share by Exchange and Pair")

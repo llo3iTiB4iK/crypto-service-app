@@ -9,13 +9,23 @@ if TYPE_CHECKING:
     from app import MyApp
 
 
-class BasePage(tk.Frame, ABC):
+class BasePage(ttk.Frame, ABC):
 
-    def __init__(self, parent: tk.Frame, controller: "MyApp", treeview_params: dict) -> None:
+    def __init__(self, parent: ttk.Frame, controller: "MyApp", treeview_params: dict) -> None:
         super().__init__(parent)
         self._controller = controller
         self._page_refresh_timer = None
         self._delayed_tasks = {}
+        # Combobox for currency choice
+        self._currency_selector = ttk.Combobox(self, state="readonly", textvariable=self._controller.selected_currency,
+                                               values=self._controller.conversion_rates.index.sort_values().tolist())
+        # Combobox for theme choice
+        self._theme_selector = ttk.Combobox(self, state="readonly", textvariable=self._controller.selected_theme,
+                                            values=sorted(self._controller.get_themes()))
+        # Fix frozen selection bug
+        def clear_combobox_selection(e: tk.Event) -> None: e.widget.selection_clear()
+        self._currency_selector.bind("<<ComboboxSelected>>", clear_combobox_selection)
+        self._theme_selector.bind("<<ComboboxSelected>>", clear_combobox_selection, add="+")
         # Treeview for data table
         self._tree = ttk.Treeview(self, **treeview_params)
         # Scrollbar for treeview table
@@ -27,17 +37,17 @@ class BasePage(tk.Frame, ABC):
         pass
 
     @abstractmethod
-    def update_page(self) -> None:
+    def _update_page(self) -> None:
         pass
 
-    def start_refreshing(self, save_selection: bool = True) -> None:
+    def _start_refreshing(self, save_selection: bool = True) -> None:
         selection_buffer = self._tree.selection()
-        self.update_page()
+        self._update_page()
         if save_selection:
             self._tree.selection_set(selection_buffer)
-        self._page_refresh_timer = self.after(PAGE_REFRESH_TIME_SEC * 1000, self.start_refreshing)
+        self._page_refresh_timer = self.after(PAGE_REFRESH_TIME_SEC * 1000, self._start_refreshing)
 
-    def stop_refreshing(self) -> None:
+    def _stop_refreshing(self) -> None:
         if self._page_refresh_timer:
             self.after_cancel(self._page_refresh_timer)
             self._page_refresh_timer = None
@@ -55,3 +65,8 @@ class BasePage(tk.Frame, ABC):
         for index, row in data.iterrows():
             if index:
                 self._tree.insert("", "end", iid=index, values=row.tolist())
+
+    def force_update(self) -> None:
+        self._stop_refreshing()
+        self._update_page()
+        self._start_refreshing()
